@@ -409,30 +409,35 @@ def select_trading_style_and_tf() -> dict:
         console.print("\n[red]No timeframe selected. Exiting...[/red]")
         exit(1)
 
-    # Confirm-TF selection (optional, higher timeframe for trend filter)
+    # Confirm-TF selection (optional, higher timeframe for trend filter) - MULTI-SELECT with Space key
     CONFIRM_TF_BY_PRIMARY = {
-        # 15m: analysis uses 1h, 4h, 1d; user can select higher TF to confirm on
-        "15m": [("4h (for confirmation)", "4h"), ("1d (for confirmation)", "1d"), ("None (skip)", "")],
-        # 4h: analysis uses 1d, 1w, 1M; user can select to confirm
-        "4h": [("1d (for confirmation)", "1d"), ("1w (for confirmation)", "1w"), ("None (skip)", "")],
+        # 15m: analysis uses 1h, 4h, 1d; user can select multiple higher TFs to confirm on
+        "15m": [("4h (for confirmation)", "4h"), ("1d (for confirmation)", "1d")],
+        # 4h: analysis uses 1d, 1w, 1M; user can select multiple to confirm
+        "4h": [("1d (for confirmation)", "1d"), ("1w (for confirmation)", "1w")],
         # 1d: analysis uses 1w, 1M; user can select to confirm
-        "1d": [("1w (for confirmation)", "1w"), ("None (skip)", "")],
+        "1d": [("1w (for confirmation)", "1w")],
         # 1w: analysis uses 1M; user can select to confirm
-        "1w": [("None (skip)", "")],
+        "1w": [],  # No confirmation options available for 1w
     }
     confirm_choices = [
         questionary.Choice(label, value=val)
-        for label, val in CONFIRM_TF_BY_PRIMARY.get(primary_tf, [("None (skip)", "")])
+        for label, val in CONFIRM_TF_BY_PRIMARY.get(primary_tf, [])
     ]
-    confirm_tf = questionary.select(
-        "Confirm trend on higher timeframe? (optional):",
-        choices=confirm_choices,
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
-    ).ask() or ""
+    
+    if confirm_choices:
+        confirm_tfs = questionary.checkbox(
+            "Confirm trend on higher timeframes? (optional - Space to select, Enter to confirm):",
+            choices=confirm_choices,
+            style=questionary.Style([
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]),
+        ).ask() or []
+        confirm_tf = ",".join(confirm_tfs) if confirm_tfs else ""
+    else:
+        confirm_tf = ""
 
     return {"trading_style": style, "primary_tf": primary_tf, "confirm_tf": confirm_tf}
 
