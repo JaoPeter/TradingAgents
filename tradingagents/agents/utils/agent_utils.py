@@ -70,10 +70,58 @@ _TF_INDICATORS: dict = {
     "1w":  "SMA(50), SMA(200), RSI(14), MACD, Bollinger Bands",
 }
 
+# Dependent timeframes for multi-timeframe analysis (higher TFs for context/confirmation)
+# news and social media are excluded as they only look back max 2 weeks
+_TF_DEPENDENCIES: dict = {
+    "15m": ["1h", "4h", "1d"],      # 15m confirms on 1h, 4h, daily
+    "1h":  ["4h", "1d"],            # 1h confirms on 4h, daily
+    "4h":  ["1d", "1w", "1M"],      # 4h confirms on daily, weekly, monthly
+    "1d":  ["1w", "1M"],            # daily confirms on weekly, monthly
+    "1w":  ["1M"],                  # weekly confirms on monthly
+}
+
 
 def get_lookback_days(primary_tf: str) -> int:
     """Return number of days to look back for news/sentiment based on timeframe."""
     return _TF_LOOKBACK_DAYS.get(primary_tf, 30)
+
+
+def get_dependent_timeframes(primary_tf: str, include_primary: bool = False) -> list:
+    """Get all higher timeframes that should be analyzed for multi-timeframe confirmation.
+    
+    Args:
+        primary_tf: Primary trading timeframe (15m, 1h, 4h, 1d, 1w)
+        include_primary: If True, include primary_tf in the returned list
+    
+    Returns:
+        List of higher timeframes for confirmation/context (news/social excluded)
+    
+    Example:
+        get_dependent_timeframes("15m") → ["1h", "4h", "1d"]
+        get_dependent_timeframes("4h")  → ["1d", "1w", "1M"]
+        get_dependent_timeframes("1d")  → ["1w", "1M"]
+    """
+    deps = _TF_DEPENDENCIES.get(primary_tf, [])
+    if include_primary:
+        return [primary_tf] + deps
+    return deps
+
+
+def build_multi_timeframe_context(primary_tf: str) -> str:
+    """Build a context string for analyzing multiple timeframes.
+    
+    Returns information about which higher timeframes should be analyzed
+    for confirmation and context.
+    """
+    deps = get_dependent_timeframes(primary_tf)
+    if not deps:
+        return f"Single timeframe analysis: {primary_tf} (no higher timeframes available)"
+    
+    return (
+        f"Multi-timeframe analysis: {primary_tf} (primary) + "
+        f"{', '.join(deps)} (confirmation/context)"
+    )
+
 
 
 def build_timeframe_context(state: dict) -> str:

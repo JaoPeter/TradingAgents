@@ -8,6 +8,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_lookback_days,
     get_stock_data,
     _TF_INDICATORS,
+    get_dependent_timeframes,
+    build_multi_timeframe_context,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -21,6 +23,10 @@ def create_market_analyst(llm):
         primary_tf = state.get("primary_tf", "1d")
         lookback = state.get("lookback_days", get_lookback_days(primary_tf))
         preferred_indicators = _TF_INDICATORS.get(primary_tf, "SMA(50), SMA(200), ATR, RSI(14), MACD, Bollinger Bands, VWMA")
+        
+        # Multi-timeframe context
+        dependent_tfs = get_dependent_timeframes(primary_tf)
+        mtf_context = build_multi_timeframe_context(primary_tf)
 
         tools = [
             get_stock_data,
@@ -28,7 +34,12 @@ def create_market_analyst(llm):
         ]
 
         system_message = (
-            f"""{tf_context}\n\nYou are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for the given trading style and timeframe from the list below. Choose up to **8 indicators** that provide complementary insights without redundancy.
+            f"""{tf_context}\n\n{mtf_context}\n\nYou are a trading assistant tasked with analyzing financial markets with a multi-timeframe perspective. Your role is to:
+
+1. Analyze the PRIMARY timeframe ({primary_tf}) for immediate trading signals
+2. Confirm trends on HIGHER timeframes ({', '.join(dependent_tfs) if dependent_tfs else 'none available'}) for contextual bias
+
+Select the **most relevant indicators** for the given trading style and timeframe from the list below. Choose up to **8 indicators** that provide complementary insights without redundancy.
 
 For the current timeframe ({primary_tf}), the preferred indicators are: {preferred_indicators}. Prioritize these unless market conditions clearly call for alternatives. Categories and each category's indicators are:
 
@@ -54,7 +65,14 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-Select indicators that provide diverse and complementary information for the {primary_tf} timeframe. Avoid redundancy. Briefly explain why each indicator is suitable. When you tool call, use the exact indicator names as defined above. Call get_stock_data first with a lookback of at least {lookback} days to retrieve the price CSV, then call get_indicators. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence, calibrated for a {state.get('trading_style', 'swing')} trader on the {primary_tf} timeframe."""
+MULTI-TIMEFRAME ANALYSIS WORKFLOW:
+1. Call get_stock_data with a lookback of at least {lookback} days to retrieve the primary timeframe price CSV
+{'2. ALSO call get_stock_data for higher timeframes: ' + ', '.join(dependent_tfs) + ' to assess confirmation and bias' if dependent_tfs else ''}
+3. Call get_indicators to compute technical indicators for each timeframe
+4. Analyze PRIMARY ({primary_tf}) for entry/exit timing and momentum
+5. Use HIGHER timeframes ({', '.join(dependent_tfs) if dependent_tfs else 'N/A'}) to filter false signals and confirm major trends
+
+Write a very detailed and nuanced multi-timeframe report of the trends you observe. Provide specific, actionable insights with supporting evidence, calibrated for a {state.get('trading_style', 'swing')} trader on the {primary_tf} timeframe. Explain how higher timeframes support or contradict your primary timeframe analysis."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
