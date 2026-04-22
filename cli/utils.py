@@ -373,8 +373,6 @@ def select_trading_style_and_tf() -> dict:
     style = questionary.select(
         "Select Trading Style:",
         choices=STYLE_OPTIONS,
-        use_pointer=True,
-        use_shortcuts=True,
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),
@@ -385,11 +383,13 @@ def select_trading_style_and_tf() -> dict:
         console.print("\n[red]No trading style selected. Exiting...[/red]")
         exit(1)
 
+    # Timeframe options: 15m and 4h as primary selectable TFs
+    # (1h is used only for analysis as a dependent timeframe)
     TF_OPTIONS_MAP = {
-        "daytrading":  [("15m — 15-Minute", "15m"), ("1h — 1-Hour", "1h")],
+        "daytrading":  [("15m — 15-Minute [RECOMMENDED]", "15m", True), ("4h — 4-Hour", "4h")],
         "swing":       [("4h — 4-Hour", "4h"), ("1d — Daily [RECOMMENDED]", "1d", True), ("1w — Weekly", "1w")],
-        "position":    [("1d — Daily", "1d"), ("1w — Weekly [RECOMMENDED]", "1w", True)],
-        "longterm":    [("1w — Weekly", "1w"), ("1d — Daily", "1d")],
+        "position":    [("1d — Daily [RECOMMENDED]", "1d", True), ("1w — Weekly", "1w")],
+        "longterm":    [("1w — Weekly [RECOMMENDED]", "1w", True), ("1d — Daily", "1d")],
     }
     
     # Build TF choices with recommended flag
@@ -406,12 +406,10 @@ def select_trading_style_and_tf() -> dict:
     primary_tf = questionary.select(
         "Select Primary Chart Timeframe:",
         choices=tf_choices,
-        use_pointer=True,
-        use_shortcuts=True,
         style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
+            ("selected", "fg:green noinherit"),
+            ("highlighted", "fg:green noinherit"),
+            ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
     if primary_tf is None:
@@ -420,12 +418,13 @@ def select_trading_style_and_tf() -> dict:
 
     # Confirm-TF selection (optional, higher timeframe for trend filter)
     CONFIRM_TF_BY_PRIMARY = {
-        # 15m should confirm up to max daily
-        "15m": [("1h", "1h"), ("4h", "4h"), ("1d", "1d"), ("None (skip)", "")],
-        "1h": [("4h", "4h"), ("1d", "1d"), ("None (skip)", "")],
-        # 4h should confirm up to max weekly
-        "4h": [("1d", "1d"), ("1w", "1w"), ("None (skip)", "")],
-        "1d": [("1w", "1w"), ("None (skip)", "")],
+        # 15m: analysis uses 1h, 4h, 1d; user can select higher TF to confirm on
+        "15m": [("4h (for confirmation)", "4h"), ("1d (for confirmation)", "1d"), ("None (skip)", "")],
+        # 4h: analysis uses 1d, 1w, 1M; user can select to confirm
+        "4h": [("1d (for confirmation)", "1d"), ("1w (for confirmation)", "1w"), ("None (skip)", "")],
+        # 1d: analysis uses 1w, 1M; user can select to confirm
+        "1d": [("1w (for confirmation)", "1w"), ("None (skip)", "")],
+        # 1w: analysis uses 1M; user can select to confirm
         "1w": [("None (skip)", "")],
     }
     confirm_choices = [
@@ -435,12 +434,10 @@ def select_trading_style_and_tf() -> dict:
     confirm_tf = questionary.select(
         "Confirm trend on higher timeframe? (optional):",
         choices=confirm_choices,
-        use_pointer=True,
-        use_shortcuts=True,
         style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
+            ("selected", "fg:green noinherit"),
+            ("highlighted", "fg:green noinherit"),
+            ("pointer", "fg:green noinherit"),
         ]),
     ).ask() or ""
 
