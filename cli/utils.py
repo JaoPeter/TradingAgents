@@ -12,20 +12,38 @@ from cli.models import AnalystType
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 
+def _default_ollama_base_url() -> str:
+    """Return sensible Ollama API default for local vs container runtime."""
+    if os.path.exists("/.dockerenv"):
+        return "http://ollama:11434/v1"
+    return "http://localhost:11434/v1"
+
+
 def _get_ollama_models() -> List[Tuple[str, str]]:
-    """Fetch installed Ollama models from the local API. Falls back to catalog on error."""
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-    # Derive the host root from the OpenAI-compatible base URL
-    api_root = base_url.rstrip("/").removesuffix("/v1")
-    tags_url = f"{api_root}/api/tags"
-    try:
-        with urllib.request.urlopen(tags_url, timeout=3) as resp:
-            data = json.loads(resp.read())
-        models = data.get("models", [])
-        if models:
-            return [(m["name"], m["name"]) for m in models]
-    except Exception:
-        pass
+    """Fetch installed Ollama models, trying both configured and common fallback hosts."""
+    configured = os.getenv("OLLAMA_BASE_URL", _default_ollama_base_url())
+    candidate_bases = [
+        configured,
+        "http://ollama:11434/v1",
+        "http://localhost:11434/v1",
+    ]
+
+    seen = set()
+    for base_url in candidate_bases:
+        api_root = base_url.rstrip("/").removesuffix("/v1")
+        if api_root in seen:
+            continue
+        seen.add(api_root)
+
+        tags_url = f"{api_root}/api/tags"
+        try:
+            with urllib.request.urlopen(tags_url, timeout=3) as resp:
+                data = json.loads(resp.read())
+            models = data.get("models", [])
+            if models:
+                return [(m["name"], m["name"]) for m in models]
+        except Exception:
+            continue
     return []
 
 console = Console()
@@ -262,7 +280,7 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
-    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    ollama_base_url = os.getenv("OLLAMA_BASE_URL", _default_ollama_base_url())
 
     # (display_name, provider_key, base_url)
     PROVIDERS = [
