@@ -8,25 +8,42 @@ import pandas as pd
 import requests
 
 
+# Crypto is always priced against USDC — a fully-reserved USD stablecoin.
+# Unlike USDT, USDC is audited and provides a transparent USD reference.
+_DEFAULT_QUOTE = "USDC"
+
+
 def _normalize_symbol(symbol: str) -> str:
-    """Normalize symbols like BTC, BTC-USD, BTCUSDT into Binance format."""
+    """Normalize symbols like BTC, BTC-USD, BTCUSDC into Binance USDC-quoted format.
+
+    All ambiguous or USD-denominated inputs are mapped to the USDC pair:
+      BTC        → BTCUSDC
+      BTC-USD    → BTCUSDC
+      BTC-USDT   → BTCUSDC   (re-quoted to USDC)
+      BTCUSDC    → BTCUSDC   (unchanged)
+      BTCUSDT    → BTCUSDT   (explicit USDT kept as-is)
+    """
     raw = (symbol or "").upper().strip().replace("/", "").replace("_", "")
     if not raw:
         return raw
 
     if "-" in raw:
         base, quote = raw.split("-", 1)
-        quote = "USDT" if quote == "USD" else quote
+        # Map generic USD / stablecoin quotes to USDC
+        if quote in ("USD", "USDT", "BUSD"):
+            quote = _DEFAULT_QUOTE
         return f"{base}{quote}"
 
-    if raw.endswith("USDT") or raw.endswith("BUSD") or raw.endswith("USDC"):
+    # Already has an explicit stablecoin suffix — keep it unchanged
+    if raw.endswith("USDC") or raw.endswith("USDT") or raw.endswith("BUSD"):
         return raw
 
+    # Strip a bare USD suffix and re-quote to USDC
     if raw.endswith("USD"):
-        return raw[:-3] + "USDT"
+        return raw[:-3] + _DEFAULT_QUOTE
 
-    # Default quote for plain tickers like BTC/ETH/SOL
-    return f"{raw}USDT"
+    # Plain base ticker like BTC / ETH / SOL → default USDC pair
+    return f"{raw}{_DEFAULT_QUOTE}"
 
 
 def _to_ms(date_str: str) -> int:

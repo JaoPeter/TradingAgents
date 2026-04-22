@@ -35,10 +35,14 @@ DEFAULT_CONFIG = {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, binance, coinmarketcap
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, coinmarketcap, defilama
-        \"news_data\": \"yfinance\",             # Options: alpha_vantage, yfinance, cryptocompare, crypto_rss, x_sentiment
+        "news_data": "yfinance",             # Options: alpha_vantage, yfinance, cryptocompare, crypto_rss, x_sentiment
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        "get_stock_data": "binance,coinmarketcap,yfinance,alpha_vantage",
+        "get_fundamentals": "coinmarketcap,defilama,yfinance,alpha_vantage",
+        "get_news": "cryptocompare,x_sentiment,crypto_rss,yfinance,alpha_vantage",
+        "get_global_news": "cryptocompare,crypto_rss,yfinance,alpha_vantage",
+        "get_sentiment_summary": "x_sentiment",
     },
 }

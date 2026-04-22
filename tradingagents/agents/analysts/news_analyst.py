@@ -27,6 +27,7 @@ def create_news_analyst(llm):
         system_message = (
             f"{tf_context}\n\nYou are a news researcher tasked with analyzing recent news and trends over the past {lookback} days. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics, calibrated for a {state.get('trading_style', 'swing')} trader on the {primary_tf} timeframe. Use the available tools: get_news(query, start_date, end_date) for instrument-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news — use look_back_days={lookback}. Focus on news that is material within the {primary_tf} holding horizon. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + """ Do not ask the user what to do next. Do not ask follow-up questions. You must make decisions from available evidence and deliver a clear directional view, key risks, and concrete next action."""
             + get_language_instruction()
         )
 

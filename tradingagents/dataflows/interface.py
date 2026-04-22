@@ -45,6 +45,21 @@ from .alpha_vantage_common import AlphaVantageRateLimitError
 # Configuration and routing logic
 from .config import get_config
 
+
+def _is_vendor_failure(result) -> bool:
+    """Detect common vendor failure payloads so fallback vendors can run."""
+    if not isinstance(result, str):
+        return False
+
+    normalized = result.strip().lower()
+    failure_prefixes = (
+        "error",
+        "no data",
+        "invalid",
+    )
+
+    return normalized.startswith(failure_prefixes) or "api_key not set" in normalized
+
 # Tools organized by category
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
@@ -73,6 +88,7 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_news",
             "get_global_news",
+            "get_sentiment_summary",
             "get_insider_transactions",
         ]
     }
@@ -126,12 +142,18 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
-        "cryptocompare": get_cryptocompare_news,        \"crypto_rss\": get_crypto_rss_news,        "x_sentiment": get_x_news,
+        "cryptocompare": get_cryptocompare_news,
+        "crypto_rss": get_crypto_rss_news,
+        "x_sentiment": get_x_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
-        "cryptocompare": get_cryptocompare_global_news,        \"crypto_rss\": get_crypto_rss_global_news,        "x_sentiment": get_x_news,
+        "cryptocompare": get_cryptocompare_global_news,
+        "crypto_rss": get_crypto_rss_global_news,
+    },
+    "get_sentiment_summary": {
+        "x_sentiment": get_x_sentiment,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
@@ -177,6 +199,8 @@ def route_to_vendor(method: str, *args, **kwargs):
         if vendor not in fallback_vendors:
             fallback_vendors.append(vendor)
 
+    last_error = None
+
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             continue
@@ -185,8 +209,19 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            if _is_vendor_failure(result):
+                last_error = f"{vendor}: {result}"
+                continue
+            return result
         except AlphaVantageRateLimitError:
+            last_error = f"{vendor}: rate limited"
             continue  # Only rate limits trigger fallback
+        except Exception as exc:
+            last_error = f"{vendor}: {exc}"
+            continue
+
+    if last_error:
+        raise RuntimeError(f"No available vendor for '{method}'. Last failure: {last_error}")
 
     raise RuntimeError(f"No available vendor for '{method}'")

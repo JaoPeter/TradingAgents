@@ -39,6 +39,30 @@ def get_global_news(
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
+def get_sentiment_summary(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve social sentiment data for a given ticker symbol.
+    Uses the configured news_data vendor chain for sentiment.
+    Args:
+        ticker (str): Ticker symbol
+        curr_date (str): Current date in yyyy-mm-dd format
+    Returns:
+        str: A formatted string containing sentiment data
+    """
+    try:
+        return route_to_vendor("get_sentiment_summary", ticker, curr_date)
+    except RuntimeError as exc:
+        # Social sentiment is supplemental context; analysis should continue even
+        # when the upstream API is unavailable or credentials are missing.
+        return (
+            f"Social sentiment currently unavailable for {ticker}: {exc}\n"
+            "Proceeding without X sentiment data."
+        )
+
+@tool
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
 ) -> str:

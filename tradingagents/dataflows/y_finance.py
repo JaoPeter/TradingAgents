@@ -6,17 +6,38 @@ import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, is_crypto_symbol
 
+def _normalize_yf_symbol(symbol: str) -> tuple[str, bool]:
+    """Return the Yahoo Finance ticker string and whether it is a crypto/USD pair.
+
+    Crypto is always quoted against USD:
+      BTC        → BTC-USD
+      BTC-USDT   → BTC-USD   (Binance-style quote stripped)
+      BTC-USD    → BTC-USD   (already correct)
+      AAPL       → AAPL      (stock, unchanged)
+    """
+    if is_crypto_symbol(symbol):
+        upper = symbol.upper().strip()
+        # Strip known stablecoin quote suffixes to get the base
+        for suffix in ("-USDT", "-BUSD", "-USDC", "USDT", "BUSD", "USDC", "-USD"):
+            if upper.endswith(suffix):
+                upper = upper[: -len(suffix)]
+                break
+        return f"{upper}-USD", True
+    return symbol.upper(), False
+
+
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
-
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
+    yf_symbol, crypto = _normalize_yf_symbol(symbol)
+
     # Create ticker object
-    ticker = yf.Ticker(symbol.upper())
+    ticker = yf.Ticker(yf_symbol)
 
     # Fetch historical data for the specified date range
     data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
@@ -24,24 +45,33 @@ def get_YFin_data_online(
     # Check if data is empty
     if data.empty:
         return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+            f"No data found for symbol '{yf_symbol}' between {start_date} and {end_date}"
         )
 
     # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
-    # Round numerical values to 2 decimal places for cleaner display
-    numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
-    for col in numeric_columns:
-        if col in data.columns:
-            data[col] = data[col].round(2)
+    if crypto:
+        # Crypto is a spot currency pair priced in USD — drop all equity-specific
+        # columns (Dividends, Stock Splits, Capital Gains) which are meaningless
+        # for digital assets.  Keep only OHLCV.
+        keep = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
+        data = data[keep]
+        asset_type = "Crypto (spot USD pair)"
+    else:
+        asset_type = "Stock"
 
-    # Convert DataFrame to CSV string
+    # Round price columns to 2 decimal places
+    price_cols = [c for c in ["Open", "High", "Low", "Close", "Adj Close"] if c in data.columns]
+    for col in price_cols:
+        data[col] = data[col].round(2)
+
     csv_string = data.to_csv()
 
-    # Add header information
-    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header = f"# {asset_type} data for {yf_symbol} from {start_date} to {end_date}\n"
+    if crypto:
+        header += f"# Price quoted in USD (spot rate)\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 

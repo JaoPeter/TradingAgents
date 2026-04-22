@@ -29,6 +29,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_income_statement,
     get_news,
+    get_sentiment_summary,
     get_insider_transactions,
     get_global_news
 )
@@ -171,6 +172,7 @@ class TradingAgentsGraph:
                 [
                     # News tools for social media analysis
                     get_news,
+                    get_sentiment_summary,
                 ]
             ),
             "news": ToolNode(

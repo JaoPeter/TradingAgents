@@ -98,10 +98,17 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     if not key:
         return f"COINMARKETCAP_API_KEY not set in .env"
 
+    # Prices are requested in USDC — a fully-reserved USD stablecoin that
+    # provides a transparent and auditable reference for crypto valuations.
     try:
         resp = requests.get(
             f"{_BASE}/cryptocurrency/quotes/historical",
-            params={"symbol": sym, "time_start": start_date, "time_end": end_date},
+            params={
+                "symbol": sym,
+                "time_start": start_date,
+                "time_end": end_date,
+                "convert": "USDC",
+            },
             headers=_headers(),
             timeout=_API_TIMEOUT,
         )
@@ -119,14 +126,15 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     rows = []
     for quote in quotes:
         ts = quote.get("timestamp", "")
-        usd_data = quote.get("quote", {}).get("USD", {})
+        # Use USDC-denominated quote; fall back to USD if USDC not returned
+        price_data = quote.get("quote", {}).get("USDC") or quote.get("quote", {}).get("USD", {})
         rows.append({
             "Date": ts[:10] if ts else "",
-            "Open": usd_data.get("open"),
-            "High": usd_data.get("high"),
-            "Low": usd_data.get("low"),
-            "Close": usd_data.get("price"),
-            "Volume": usd_data.get("volume_24h"),
+            "Open": price_data.get("open"),
+            "High": price_data.get("high"),
+            "Low": price_data.get("low"),
+            "Close": price_data.get("price"),
+            "Volume": price_data.get("volume_24h"),
         })
 
     if not rows:
@@ -135,7 +143,8 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     frame = pd.DataFrame(rows)
     frame = frame.sort_values("Date")
 
-    header = f"# CoinMarketCap OHLCV for {sym} from {start_date} to {end_date}\n"
+    header = f"# CoinMarketCap OHLCV for {sym}/USDC from {start_date} to {end_date}\n"
+    header += f"# Price quoted in USDC\n"
     header += f"# Total records: {len(frame)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 

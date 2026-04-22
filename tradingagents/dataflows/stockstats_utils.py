@@ -11,6 +11,8 @@ from .config import get_config
 
 logger = logging.getLogger(__name__)
 
+_REQUIRED_OHLCV_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
+
 # Common crypto symbols and patterns
 CRYPTO_SYMBOLS = {
     "BTC", "ETH", "DOGE", "SHIB", "SOL", "XRP", "ADA", "AVAX", "MATIC", "LINK",
@@ -79,6 +81,15 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def _read_ohlcv_csv(source) -> pd.DataFrame:
+    """Read OHLCV CSV while skipping vendor metadata comment lines.
+
+    Vendors like Binance/CoinMarketCap prepend '# ...' lines before the CSV body.
+    pandas must ignore these lines to avoid tokenizing errors and malformed headers.
+    """
+    return pd.read_csv(source, comment="#", on_bad_lines="skip")
+
+
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -103,22 +114,33 @@ def _load_crypto_ohlcv(symbol: str, curr_date_dt) -> pd.DataFrame:
     """Load crypto OHLCV from Binance (24/7 markets, all days included)."""
     from datetime import timedelta
     from . import binance
-    
+
     today_date = pd.Timestamp.today()
     start_date = today_date - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = today_date.strftime("%Y-%m-%d")
-    
+
     config = get_config()
     os.makedirs(config["data_cache_dir"], exist_ok=True)
+
+    # Resolve the normalised Binance pair name (e.g. BTCUSDC) for the cache key
+    # so that USDC and USDT caches are stored separately and never mixed.
+    binance_pair = binance._normalize_symbol(symbol)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{symbol}-Binance-data-{start_str}-{end_str}.csv",
+        f"{binance_pair}-Binance-data-{start_str}-{end_str}.csv",
     )
     
     if os.path.exists(data_file):
-        data = pd.read_csv(data_file, on_bad_lines="skip")
+        data = _read_ohlcv_csv(data_file)
+        # Refresh stale/corrupted cache files created from malformed CSV input.
+        if not all(col in data.columns for col in _REQUIRED_OHLCV_COLUMNS):
+            logger.warning(f"Invalid cached crypto data for {symbol} at {data_file}; refetching from Binance")
+            data = pd.DataFrame()
     else:
+        data = pd.DataFrame()
+
+    if data.empty:
         # Fetch from Binance
         csv_str = binance.get_stock_data(symbol, start_str, end_str)
         if csv_str.startswith("Error") or csv_str.startswith("No"):
@@ -126,7 +148,7 @@ def _load_crypto_ohlcv(symbol: str, curr_date_dt) -> pd.DataFrame:
             return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
         
         from io import StringIO
-        data = pd.read_csv(StringIO(csv_str))
+        data = _read_ohlcv_csv(StringIO(csv_str))
         data.to_csv(data_file, index=False)
     
     data = _clean_dataframe(data)

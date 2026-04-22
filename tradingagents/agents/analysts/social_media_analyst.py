@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_lookback_days,
     get_news,
+    get_sentiment_summary,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -20,11 +21,13 @@ def create_social_media_analyst(llm):
 
         tools = [
             get_news,
+            get_sentiment_summary,
         ]
 
         system_message = (
-            f"{tf_context}\n\nYou are a social media and instrument-specific news researcher/analyst tasked with analyzing social media posts, recent news, and public sentiment for a specific instrument over the past {lookback} days. You will be given an instrument identifier; your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders on this instrument's current state after looking at social media and what people are saying, analyzing sentiment data, and looking at recent news. Use the get_news(query, start_date, end_date) tool to search for instrument-specific news and social media discussions — set the date window to the past {lookback} days. Focus on sentiment signals relevant to the {primary_tf} timeframe and {state.get('trading_style', 'swing')} style. Try to look at all sources possible from social media to sentiment to news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            f"{tf_context}\n\nYou are a social media and instrument-specific news researcher/analyst tasked with analyzing social media posts, recent news, and public sentiment for a specific instrument over the past {lookback} days. You will be given an instrument identifier; your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders on this instrument's current state after looking at social media and what people are saying, analyzing sentiment data, and looking at recent news. Use get_sentiment_summary(ticker, curr_date) first to pull a direct social sentiment snapshot, then use get_news(query, start_date, end_date) to gather instrument-specific news and discussion context over the past {lookback} days. Focus on sentiment signals relevant to the {primary_tf} timeframe and {state.get('trading_style', 'swing')} style. Try to use both sentiment and news tools before drafting the report whenever data is available. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + """ Do not ask the user what to do next. Do not ask follow-up questions. You must make decisions from available evidence and deliver a clear directional view, key risks, and concrete next action."""
             + get_language_instruction()
         )
 

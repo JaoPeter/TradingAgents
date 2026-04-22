@@ -64,7 +64,8 @@ def create_fundamentals_analyst(llm):
             "Please write a comprehensive report of the instrument's fundamental information to inform traders. "
             "Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence."
             " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + get_language_instruction(),
+            " Do not ask the user what to do next. Do not ask follow-up questions. You must make decisions from available evidence and deliver a clear directional view, key risks, and concrete next action."
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
