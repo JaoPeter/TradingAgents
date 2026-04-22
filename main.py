@@ -14,10 +14,10 @@ config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)
 config["data_vendors"] = {
-    "core_stock_apis": "yfinance",           # Options: alpha_vantage, yfinance
+    "core_stock_apis": "yfinance",           # Options: alpha_vantage, yfinance, binance, coinmarketcap
     "technical_indicators": "yfinance",      # Options: alpha_vantage, yfinance
-    "fundamental_data": "yfinance",          # Options: alpha_vantage, yfinance
-    "news_data": "yfinance",                 # Options: alpha_vantage, yfinance
+    "fundamental_data": "yfinance",          # Options: alpha_vantage, yfinance, coinmarketcap, defilama
+    \"news_data\": \"yfinance\",                 # Options: alpha_vantage, yfinance, cryptocompare, crypto_rss, x_sentiment
 }
 
 # Initialize with custom config

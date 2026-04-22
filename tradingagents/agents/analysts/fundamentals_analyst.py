@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_fundamentals,
     get_income_statement,
     get_insider_transactions,
+    invoke_with_optional_tools,
     get_language_instruction,
 )
 from tradingagents.dataflows.config import get_config
@@ -52,9 +53,7 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
+        result = invoke_with_optional_tools(prompt, llm, tools, state["messages"])
 
         report = ""
 

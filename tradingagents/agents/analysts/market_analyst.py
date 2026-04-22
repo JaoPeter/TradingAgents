@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
+    invoke_with_optional_tools,
     get_language_instruction,
     get_stock_data,
 )
@@ -71,9 +72,7 @@ Volume-Based Indicators:
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
+        result = invoke_with_optional_tools(prompt, llm, tools, state["messages"])
 
         report = ""
 

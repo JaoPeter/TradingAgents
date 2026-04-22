@@ -42,6 +42,26 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
+
+def _is_ollama_tool_support_error(exc: Exception) -> bool:
+    """Detect Ollama errors where the selected model cannot use tool calling."""
+    message = str(exc).lower()
+    return "does not support tools" in message and (
+        "registry.ollama.ai" in message or "ollama" in message
+    )
+
+
+def invoke_with_optional_tools(prompt, llm, tools, messages):
+    """Invoke with tools first and gracefully fall back when Ollama model lacks tool support."""
+    chain = prompt | llm.bind_tools(tools)
+    try:
+        return chain.invoke(messages)
+    except Exception as exc:
+        if _is_ollama_tool_support_error(exc):
+            print("[warning] Selected Ollama model does not support tools. Retrying without tools.")
+            return (prompt | llm).invoke(messages)
+        raise
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""

@@ -1,3 +1,8 @@
+import os
+import urllib.request
+import urllib.error
+import json
+
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -5,6 +10,23 @@ from rich.console import Console
 
 from cli.models import AnalystType
 from tradingagents.llm_clients.model_catalog import get_model_options
+
+
+def _get_ollama_models() -> List[Tuple[str, str]]:
+    """Fetch installed Ollama models from the local API. Falls back to catalog on error."""
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    # Derive the host root from the OpenAI-compatible base URL
+    api_root = base_url.rstrip("/").removesuffix("/v1")
+    tags_url = f"{api_root}/api/tags"
+    try:
+        with urllib.request.urlopen(tags_url, timeout=3) as resp:
+            data = json.loads(resp.read())
+        models = data.get("models", [])
+        if models:
+            return [(m["name"], m["name"]) for m in models]
+    except Exception:
+        pass
+    return []
 
 console = Console()
 
@@ -193,11 +215,21 @@ def _select_model(provider: str, mode: str) -> str:
             validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
         ).ask().strip()
 
+    if provider.lower() == "ollama":
+        ollama_models = _get_ollama_models()
+        if ollama_models:
+            model_options = ollama_models
+        else:
+            console.print("[yellow]Could not reach Ollama API - showing default model list.[/yellow]")
+            model_options = get_model_options(provider, mode)
+    else:
+        model_options = get_model_options(provider, mode)
+
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
+            for display, value in model_options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -230,6 +262,8 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
+    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
@@ -241,7 +275,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", "http://localhost:11434/v1"),
+        ("Ollama", "ollama", ollama_base_url),
     ]
 
     choice = questionary.select(
