@@ -365,7 +365,7 @@ def select_trading_style_and_tf() -> dict:
 
     STYLE_OPTIONS = [
         questionary.Choice("Day Trading  (intraday, close before EOD)", value="daytrading"),
-        questionary.Choice("Swing Trading  (2–10 days) [default]", value="swing"),
+        questionary.Choice("Swing Trading  (2–10 days) [RECOMMENDED]", value="swing", recommended=True),
         questionary.Choice("Position Trading  (weeks to months)", value="position"),
         questionary.Choice("Long-Term Investing  (months to years)", value="longterm"),
     ]
@@ -373,7 +373,8 @@ def select_trading_style_and_tf() -> dict:
     style = questionary.select(
         "Select Trading Style:",
         choices=STYLE_OPTIONS,
-        default="swing",
+        use_pointer=True,
+        use_shortcuts=True,
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),
@@ -386,14 +387,27 @@ def select_trading_style_and_tf() -> dict:
 
     TF_OPTIONS_MAP = {
         "daytrading":  [("15m — 15-Minute", "15m"), ("1h — 1-Hour", "1h")],
-        "swing":       [("4h — 4-Hour", "4h"), ("1d — Daily [default]", "1d"), ("1w — Weekly", "1w")],
-        "position":    [("1d — Daily", "1d"), ("1w — Weekly [default]", "1w")],
+        "swing":       [("4h — 4-Hour", "4h"), ("1d — Daily [RECOMMENDED]", "1d", True), ("1w — Weekly", "1w")],
+        "position":    [("1d — Daily", "1d"), ("1w — Weekly [RECOMMENDED]", "1w", True)],
         "longterm":    [("1w — Weekly", "1w"), ("1d — Daily", "1d")],
     }
-    tf_choices = [questionary.Choice(label, value=val) for label, val in TF_OPTIONS_MAP[style]]
+    
+    # Build TF choices with recommended flag
+    tf_choices_data = TF_OPTIONS_MAP[style]
+    tf_choices = []
+    for item in tf_choices_data:
+        if len(item) == 3:
+            label, value, recommended = item
+            tf_choices.append(questionary.Choice(label, value=value, recommended=recommended))
+        else:
+            label, value = item
+            tf_choices.append(questionary.Choice(label, value=value))
+    
     primary_tf = questionary.select(
         "Select Primary Chart Timeframe:",
         choices=tf_choices,
+        use_pointer=True,
+        use_shortcuts=True,
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),
@@ -407,20 +421,22 @@ def select_trading_style_and_tf() -> dict:
     # Confirm-TF selection (optional, higher timeframe for trend filter)
     CONFIRM_TF_BY_PRIMARY = {
         # 15m should confirm up to max daily
-        "15m": [("1h", "1h"), ("4h", "4h"), ("1d", "1d"), ("None", "")],
-        "1h": [("4h", "4h"), ("1d", "1d"), ("None", "")],
+        "15m": [("1h", "1h"), ("4h", "4h"), ("1d", "1d"), ("None (skip)", "")],
+        "1h": [("4h", "4h"), ("1d", "1d"), ("None (skip)", "")],
         # 4h should confirm up to max weekly
-        "4h": [("1d", "1d"), ("1w", "1w"), ("None", "")],
-        "1d": [("1w", "1w"), ("None", "")],
-        "1w": [("None", "")],
+        "4h": [("1d", "1d"), ("1w", "1w"), ("None (skip)", "")],
+        "1d": [("1w", "1w"), ("None (skip)", "")],
+        "1w": [("None (skip)", "")],
     }
     confirm_choices = [
         questionary.Choice(label, value=val)
-        for label, val in CONFIRM_TF_BY_PRIMARY.get(primary_tf, [("None", "")])
+        for label, val in CONFIRM_TF_BY_PRIMARY.get(primary_tf, [("None (skip)", "")])
     ]
     confirm_tf = questionary.select(
         "Confirm trend on higher timeframe? (optional):",
         choices=confirm_choices,
+        use_pointer=True,
+        use_shortcuts=True,
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),
