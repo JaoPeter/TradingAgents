@@ -365,7 +365,7 @@ def select_trading_style_and_tf() -> dict:
 
     STYLE_OPTIONS = [
         questionary.Choice("Day Trading  (intraday, close before EOD)", value="daytrading"),
-        questionary.Choice("Swing Trading  (2–10 days) [RECOMMENDED]", value="swing", recommended=True),
+        questionary.Choice("Swing Trading  (2–10 days) [RECOMMENDED]", value="swing"),
         questionary.Choice("Position Trading  (weeks to months)", value="position"),
         questionary.Choice("Long-Term Investing  (months to years)", value="longterm"),
     ]
@@ -386,22 +386,15 @@ def select_trading_style_and_tf() -> dict:
     # Timeframe options: 15m and 4h as primary selectable TFs
     # (1h is used only for analysis as a dependent timeframe)
     TF_OPTIONS_MAP = {
-        "daytrading":  [("15m — 15-Minute [RECOMMENDED]", "15m", True), ("4h — 4-Hour", "4h")],
-        "swing":       [("4h — 4-Hour", "4h"), ("1d — Daily [RECOMMENDED]", "1d", True), ("1w — Weekly", "1w")],
-        "position":    [("1d — Daily [RECOMMENDED]", "1d", True), ("1w — Weekly", "1w")],
-        "longterm":    [("1w — Weekly [RECOMMENDED]", "1w", True), ("1d — Daily", "1d")],
+        "daytrading":  [("15m — 15-Minute [RECOMMENDED]", "15m"), ("4h — 4-Hour", "4h")],
+        "swing":       [("4h — 4-Hour", "4h"), ("1d — Daily [RECOMMENDED]", "1d"), ("1w — Weekly", "1w")],
+        "position":    [("1d — Daily [RECOMMENDED]", "1d"), ("1w — Weekly", "1w")],
+        "longterm":    [("1w — Weekly [RECOMMENDED]", "1w"), ("1d — Daily", "1d")],
     }
     
-    # Build TF choices with recommended flag
+    # Build TF choices
     tf_choices_data = TF_OPTIONS_MAP[style]
-    tf_choices = []
-    for item in tf_choices_data:
-        if len(item) == 3:
-            label, value, recommended = item
-            tf_choices.append(questionary.Choice(label, value=value, recommended=recommended))
-        else:
-            label, value = item
-            tf_choices.append(questionary.Choice(label, value=value))
+    tf_choices = [questionary.Choice(label, value=value) for label, value in tf_choices_data]
     
     primary_tf = questionary.select(
         "Select Primary Chart Timeframe:",
