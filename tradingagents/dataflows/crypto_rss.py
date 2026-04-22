@@ -7,8 +7,11 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 import urllib.parse
 import xml.etree.ElementTree as ET
+import os
 
 import requests
+
+_API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "30"))
 
 _RSS_FEEDS = [
     ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
@@ -81,7 +84,7 @@ def _fetch_all_items() -> list[dict[str, Any]]:
     all_items: list[dict[str, Any]] = []
     for name, url in _RSS_FEEDS:
         try:
-            resp = requests.get(url, timeout=12)
+            resp = requests.get(url, timeout=_API_TIMEOUT)
             resp.raise_for_status()
             all_items.extend(_extract_items(name, resp.text))
         except Exception:

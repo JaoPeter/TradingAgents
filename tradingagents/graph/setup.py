@@ -120,6 +120,7 @@ class GraphSetup:
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
+        workflow.add_node("tools_trader", self.tool_nodes["trader"])
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
@@ -169,7 +170,15 @@ class GraphSetup:
             },
         )
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Aggressive Analyst")
+        workflow.add_conditional_edges(
+            "Trader",
+            self.conditional_logic.should_continue_trader,
+            {
+                "tools_trader": "tools_trader",
+                "Aggressive Analyst": "Aggressive Analyst",
+            },
+        )
+        workflow.add_edge("tools_trader", "Trader")
         workflow.add_conditional_edges(
             "Aggressive Analyst",
             self.conditional_logic.should_continue_risk_analysis,

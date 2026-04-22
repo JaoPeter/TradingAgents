@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+import os
 
 import requests
 
 _BASE = "https://min-api.cryptocompare.com/data"
+_API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "30"))
 
 
 def _normalize_symbol(symbol: str) -> str:
@@ -47,7 +49,7 @@ def get_news(ticker: str, start_date: str, end_date: str) -> str:
                 "sortOrder": "latest",
             },
             headers=_headers(),
-            timeout=12,
+            timeout=_API_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -124,7 +126,7 @@ def get_global_news(curr_date: str, look_back_days: int = 7, limit: int = 20) ->
                 "sortOrder": "latest",
             },
             headers=_headers(),
-            timeout=12,
+            timeout=_API_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()

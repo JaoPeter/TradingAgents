@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+import os
 
 import requests
+
+_API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "30"))
 
 # Note: This is a placeholder for X/Twitter sentiment integration.
 # Actual X API requires authentication and special access.
@@ -46,7 +49,7 @@ def get_sentiment_summary(ticker: str, curr_date: str = None) -> str:
             "https://api.example.com/sentiment",
             params={"symbol": symbol, "source": "twitter"},
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=12,
+            timeout=_API_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()

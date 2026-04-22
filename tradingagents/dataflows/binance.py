@@ -66,7 +66,7 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
         headers["X-MBX-APIKEY"] = api_key
 
     try:
-        resp = requests.get(url, params=params, headers=headers, timeout=12)
+        resp = requests.get(url, params=params, headers=headers, timeout=int(os.getenv("API_TIMEOUT_SECONDS", "30")))
         resp.raise_for_status()
         rows = resp.json()
     except Exception as exc:

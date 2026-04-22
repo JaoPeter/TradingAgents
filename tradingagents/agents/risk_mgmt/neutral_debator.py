@@ -1,10 +1,16 @@
 
 
+from tradingagents.agents.utils.agent_utils import build_timeframe_context
+
+
 def create_neutral_debator(llm):
     def neutral_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
         neutral_history = risk_debate_state.get("neutral_history", "")
+        tf_context = build_timeframe_context(state)
+        primary_tf = state.get("primary_tf", "1d")
+        trading_style = state.get("trading_style", "swing")
 
         current_aggressive_response = risk_debate_state.get("current_aggressive_response", "")
         current_conservative_response = risk_debate_state.get("current_conservative_response", "")
@@ -16,7 +22,9 @@ def create_neutral_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective for a {trading_style} trader on the {primary_tf} timeframe. {tf_context}
+
+    Weigh both the potential benefits and risks of the trader's decision, evaluating upsides and downsides while factoring in broader market trends and diversification strategies appropriate for the {primary_tf} holding horizon. Here is the trader's decision:
 
 {trader_decision}
 

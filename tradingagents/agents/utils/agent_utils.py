@@ -43,6 +43,60 @@ def build_instrument_context(ticker: str) -> str:
     )
 
 
+# Lookback days per primary timeframe
+_TF_LOOKBACK_DAYS: dict = {
+    "15m": 3,
+    "1h":  7,
+    "4h":  14,
+    "1d":  30,
+    "1w":  180,
+}
+
+# Human-readable time horizon per timeframe
+_TF_HORIZON: dict = {
+    "15m": "intraday (1-8 hours)",
+    "1h":  "short-term (hours to 2 days)",
+    "4h":  "short-term (2-7 days)",
+    "1d":  "medium-term (1-4 weeks)",
+    "1w":  "long-term (1-6 months)",
+}
+
+# Preferred indicators per timeframe
+_TF_INDICATORS: dict = {
+    "15m": "EMA(9), EMA(21), VWAP, ATR, RSI(14), MACD, Bollinger Bands",
+    "1h":  "EMA(21), EMA(50), ATR, RSI(14), MACD, Bollinger Bands, VWMA",
+    "4h":  "EMA(50), SMA(200), ATR, RSI(14), MACD, Bollinger Bands, VWMA",
+    "1d":  "SMA(50), SMA(200), ATR, RSI(14), MACD, Bollinger Bands, VWMA",
+    "1w":  "SMA(50), SMA(200), RSI(14), MACD, Bollinger Bands",
+}
+
+
+def get_lookback_days(primary_tf: str) -> int:
+    """Return number of days to look back for news/sentiment based on timeframe."""
+    return _TF_LOOKBACK_DAYS.get(primary_tf, 30)
+
+
+def build_timeframe_context(state: dict) -> str:
+    """Build a concise timeframe/style context string for agent prompts."""
+    style = state.get("trading_style", "swing")
+    tf = state.get("primary_tf", "1d")
+    conf = state.get("confirm_tf", "")
+    lookback = state.get("lookback_days", get_lookback_days(tf))
+    horizon = _TF_HORIZON.get(tf, "medium-term")
+    indicators = _TF_INDICATORS.get(tf, "standard indicators")
+
+    ctx = (
+        f"Trading context: {style.upper()} strategy | "
+        f"Primary timeframe: {tf} | "
+        f"Time horizon: {horizon} | "
+        f"Preferred indicators: {indicators} | "
+        f"Data lookback: {lookback} days"
+    )
+    if conf:
+        ctx += f" | Confirmation timeframe: {conf}"
+    return ctx
+
+
 def _is_ollama_tool_support_error(exc: Exception) -> bool:
     """Detect Ollama errors where the selected model cannot use tool calling."""
     message = str(exc).lower()

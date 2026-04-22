@@ -18,6 +18,13 @@ DEFAULT_CONFIG = {
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
+    # Timeout settings (seconds) — override via env vars API_TIMEOUT_SECONDS / LLM_TIMEOUT_SECONDS
+    "api_timeout": int(os.getenv("API_TIMEOUT_SECONDS", "30")),
+    "llm_timeout": int(os.getenv("LLM_TIMEOUT_SECONDS", "240")),
+    # Trading style / timeframe defaults (overridden by CLI selections)
+    "trading_style": "swing",
+    "primary_tf": "1d",
+    "confirm_tf": "",
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

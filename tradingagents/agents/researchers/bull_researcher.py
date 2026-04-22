@@ -1,10 +1,14 @@
 
 
+from tradingagents.agents.utils.agent_utils import build_timeframe_context
+
+
 def create_bull_researcher(llm, memory):
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bull_history = investment_debate_state.get("bull_history", "")
+        tf_context = build_timeframe_context(state)
 
         current_response = investment_debate_state.get("current_response", "")
         market_research_report = state["market_report"]
@@ -13,18 +17,24 @@ def create_bull_researcher(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = memory.get_memories(
+            curr_situation,
+            n_matches=2,
+            primary_tf=state.get("primary_tf", "1d"),
+        )
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""You are a Bull Analyst advocating for a long/buy position on this instrument. {tf_context}
+
+    Your task is to build a strong, evidence-based case emphasizing upside potential, competitive advantages, and positive market indicators for the {state.get('primary_tf', '1d')} timeframe and {state.get('trading_style', 'swing')} trading style.
 
 Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
+    - Upside Potential: Highlight market opportunities, growth catalysts, and price targets relevant to the holding horizon.
+    - Competitive Advantages: Emphasize factors like unique value proposition, strong positioning, or dominant market share.
+    - Positive Indicators: Use technical signals, fundamentals, and recent positive news as evidence.
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
@@ -32,7 +42,7 @@ Resources available:
 Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
+    Instrument fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}

@@ -47,6 +47,12 @@ class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
 
+    # Trading style and timeframe context
+    trading_style: Annotated[str, "Trading style: scalping, daytrading, swing, position, longterm"]
+    primary_tf: Annotated[str, "Primary chart timeframe: 1m, 5m, 15m, 1h, 4h, 1d, 1w"]
+    confirm_tf: Annotated[str, "Higher timeframe for trend confirmation (optional)"]
+    lookback_days: Annotated[int, "Number of days to look back for news/sentiment data"]
+
     sender: Annotated[str, "Agent that sent this message"]
 
     # research step

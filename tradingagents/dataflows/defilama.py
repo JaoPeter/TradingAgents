@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 
 import requests
 
 _BASE = "https://api.llama.fi"
+_API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "30"))
 
 
 def _normalize_symbol(symbol: str) -> str:
@@ -25,7 +27,7 @@ def _normalize_symbol(symbol: str) -> str:
 def get_defi_metrics(curr_date: str = None) -> str:
     """Return global DeFi metrics and overview."""
     try:
-        resp = requests.get(f"{_BASE}/data/defiSnapshot", timeout=12)
+        resp = requests.get(f"{_BASE}/data/defiSnapshot", timeout=_API_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
@@ -55,7 +57,7 @@ def get_defi_metrics(curr_date: str = None) -> str:
 def get_chain_tvl(chain: str = "ethereum") -> str:
     """Return TVL for a specific blockchain."""
     try:
-        resp = requests.get(f"{_BASE}/chains", timeout=12)
+        resp = requests.get(f"{_BASE}/chains", timeout=_API_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
@@ -76,7 +78,7 @@ def get_chain_tvl(chain: str = "ethereum") -> str:
 def get_protocol_tvl(protocol: str) -> str:
     """Return TVL for a specific DeFi protocol."""
     try:
-        resp = requests.get(f"{_BASE}/protocols", timeout=12)
+        resp = requests.get(f"{_BASE}/protocols", timeout=_API_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
@@ -106,7 +108,7 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
 
     # Try to interpret as a chain name first
     try:
-        resp = requests.get(f"{_BASE}/chains", timeout=12)
+        resp = requests.get(f"{_BASE}/chains", timeout=_API_TIMEOUT)
         resp.raise_for_status()
         chains = resp.json()
     except Exception as exc:

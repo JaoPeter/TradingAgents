@@ -16,13 +16,23 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str
+        self,
+        company_name: str,
+        trade_date: str,
+        trading_style: str = "swing",
+        primary_tf: str = "1d",
+        confirm_tf: str = "",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        from tradingagents.agents.utils.agent_utils import get_lookback_days
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
+            "trading_style": trading_style,
+            "primary_tf": primary_tf,
+            "confirm_tf": confirm_tf,
+            "lookback_days": get_lookback_days(primary_tf),
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",

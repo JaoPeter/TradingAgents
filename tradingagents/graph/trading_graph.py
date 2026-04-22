@@ -135,6 +135,9 @@ class TradingAgentsGraph:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
+        llm_timeout = self.config.get("llm_timeout")
+        if llm_timeout:
+            kwargs["timeout"] = llm_timeout
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -187,16 +190,22 @@ class TradingAgentsGraph:
                     get_income_statement,
                 ]
             ),
+            "trader": ToolNode(
+                [
+                    # Live price check for final entry validation
+                    get_stock_data,
+                ]
+            ),
         }
 
-    def propagate(self, company_name, trade_date):
+    def propagate(self, company_name, trade_date, trading_style="swing", primary_tf="1d", confirm_tf=""):
         """Run the trading agents graph for a company on a specific date."""
 
         self.ticker = company_name
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
+            company_name, trade_date, trading_style=trading_style, primary_tf=primary_tf, confirm_tf=confirm_tf
         )
         args = self.propagator.get_graph_args()
 

@@ -9,6 +9,9 @@ import requests
 
 _BASE = "https://pro-api.coinmarketcap.com/v1"
 
+import os
+_API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "30"))
+
 
 def _normalize_symbol(symbol: str) -> str:
     raw = (symbol or "").upper().strip()
@@ -47,7 +50,7 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
             f"{_BASE}/cryptocurrency/info",
             params={"symbol": symbol},
             headers=_headers(),
-            timeout=12,
+            timeout=_API_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -100,7 +103,7 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
             f"{_BASE}/cryptocurrency/quotes/historical",
             params={"symbol": sym, "time_start": start_date, "time_end": end_date},
             headers=_headers(),
-            timeout=12,
+            timeout=_API_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
