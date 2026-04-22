@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, is_crypto_symbol
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -153,7 +153,18 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                # For crypto (24/7 markets), find the most recent available data
+                # For stocks, no data = not a trading day
+                if is_crypto_symbol(symbol):
+                    # Find the most recent date <= current_dt with data
+                    available_dates = sorted([d for d in indicator_data.keys() if d <= date_str], reverse=True)
+                    if available_dates:
+                        latest_date = available_dates[0]
+                        indicator_value = f"{indicator_data[latest_date]} (last available: {latest_date})"
+                    else:
+                        indicator_value = "N/A: No data available"
+                else:
+                    indicator_value = "N/A: Not a trading day (weekend or holiday)"
             
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
