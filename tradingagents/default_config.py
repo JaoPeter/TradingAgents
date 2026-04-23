@@ -13,8 +13,11 @@ DEFAULT_CONFIG = {
     "backend_url": "https://api.openai.com/v1",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "openai_reasoning_effort": "low",  # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # Output token limits per LLM role
+    "quick_max_tokens": 700,
+    "deep_max_tokens": 1100,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",

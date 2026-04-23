@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import os
 import re
+import urllib.parse
 
 import requests
 
@@ -111,6 +112,15 @@ def _get_auth_headers() -> dict[str, str]:
     token = os.getenv("X_BEARER_TOKEN", "").strip() or os.getenv("X_API_KEY", "").strip()
     if not token:
         return {}
+    # Support URL-encoded tokens copied from env templates/logs.
+    token = urllib.parse.unquote(token)
+    # Accept either raw token or "Bearer <token>" input.
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    # Strip optional wrapping quotes.
+    token = token.strip().strip('"').strip("'")
+    if not token:
+        return {}
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -152,7 +162,9 @@ def _resolve_recent_window(start_date: str, end_date: str) -> tuple[datetime, da
     now = _utc_now()
     min_allowed = now - timedelta(days=_RECENT_SEARCH_MAX_DAYS)
     if end_dt < min_allowed:
-        return None, None
+        # Requested range is entirely older than API retention.
+        # Fall back to the latest available retention window.
+        return min_allowed, now
 
     return max(start_dt, min_allowed), min(end_dt, now)
 
@@ -169,7 +181,8 @@ def _resolve_sentiment_window(curr_date: str | None) -> tuple[datetime, datetime
 
     min_allowed = now - timedelta(days=_RECENT_SEARCH_MAX_DAYS)
     if end_dt < min_allowed:
-        return None, None
+        # Requested reference date is outside retention; use latest available data.
+        end_dt = now
 
     end_dt = min(end_dt, now)
     start_dt = max(end_dt - timedelta(hours=_DEFAULT_SENTIMENT_LOOKBACK_HOURS), min_allowed)
@@ -357,10 +370,13 @@ def get_sentiment_summary(ticker: str, curr_date: str = None) -> str:
 
     try:
         start_dt, end_dt = _resolve_sentiment_window(curr_date)
+        window_note = ""
         if not start_dt or not end_dt:
-            return (
-                f"Error fetching X sentiment for {symbol}: requested date is outside X recent-search retention. "
-                f"The standard X recent search API only supports approximately the last {_RECENT_SEARCH_MAX_DAYS} days."
+            end_dt = _utc_now()
+            start_dt = max(end_dt - timedelta(hours=_DEFAULT_SENTIMENT_LOOKBACK_HOURS), end_dt - timedelta(days=_RECENT_SEARCH_MAX_DAYS))
+            window_note = (
+                f"Requested curr_date is outside X recent-search retention or invalid; "
+                f"using latest {_DEFAULT_SENTIMENT_LOOKBACK_HOURS}h window instead."
             )
 
         query = _build_query(symbol)
@@ -376,17 +392,24 @@ def get_sentiment_summary(ticker: str, curr_date: str = None) -> str:
         )
 
     if not ranked_tweets:
-        return (
-            f"# X (Twitter) Sentiment for {symbol}\n"
-            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"# Search criteria: {_build_query(symbol)}\n"
-            f"# Considered window: {_to_rfc3339(start_dt)} to {_to_rfc3339(end_dt)}\n\n"
-            f"Sentiment: neutral\n"
-            f"Sentiment Score: 0.00\n"
-            f"Mention Count (considered): 0\n"
-            f"Engagement Score (aggregate): 0.0\n"
-            f"Criteria Applied: English only, no retweets, no replies, deduplicated posts, low-signal posts filtered."
+        parts = [
+            f"# X (Twitter) Sentiment for {symbol}\n",
+            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
+            f"# Search criteria: {_build_query(symbol)}\n",
+            f"# Considered window: {_to_rfc3339(start_dt)} to {_to_rfc3339(end_dt)}\n\n",
+        ]
+        if window_note:
+            parts.append(f"Window note: {window_note}\n\n")
+        parts.extend(
+            [
+                "Sentiment: neutral\n",
+                "Sentiment Score: 0.00\n",
+                "Mention Count (considered): 0\n",
+                "Engagement Score (aggregate): 0.0\n",
+                "Criteria Applied: English only, no retweets, no replies, deduplicated posts, low-signal posts filtered.",
+            ]
         )
+        return "".join(parts)
 
     weighted_score_total = sum(tweet["sentiment_score"] * max(tweet["engagement_score"], 1.0) for tweet in ranked_tweets)
     engagement_total = sum(tweet["engagement_score"] for tweet in ranked_tweets)
@@ -400,6 +423,8 @@ def get_sentiment_summary(ticker: str, curr_date: str = None) -> str:
         header += f"# Trading date context: {curr_date}\n"
     header += f"# Search criteria: {_build_query(symbol)}\n"
     header += f"# Considered window: {_to_rfc3339(start_dt)} to {_to_rfc3339(end_dt)}\n"
+    if window_note:
+        header += f"# Window note: {window_note}\n"
     header += "\n"
 
     lines = [
@@ -425,10 +450,13 @@ def get_news(ticker: str, start_date: str, end_date: str) -> str:
         return "Error fetching X discussion trends: X_API_KEY not set in .env or X_BEARER_TOKEN is empty."
 
     start_dt, end_dt = _resolve_recent_window(start_date, end_date)
+    window_note = ""
     if not start_dt or not end_dt:
-        return (
-            f"Error fetching X discussion trends for {symbol}: requested date window is outside X recent-search retention "
-            f"or has an invalid date range."
+        end_dt = _utc_now()
+        start_dt = end_dt - timedelta(days=_RECENT_SEARCH_MAX_DAYS)
+        window_note = (
+            "Requested date window is outside X recent-search retention or invalid; "
+            f"using latest available {_RECENT_SEARCH_MAX_DAYS}-day window instead."
         )
 
     try:
@@ -447,6 +475,8 @@ def get_news(ticker: str, start_date: str, end_date: str) -> str:
     header = f"## X (Twitter) Discussion Trends for {symbol}\n"
     header += f"Search criteria: {_build_query(symbol)}\n"
     header += f"Window: {_to_rfc3339(start_dt)} to {_to_rfc3339(end_dt)}\n"
+    if window_note:
+        header += f"Window note: {window_note}\n"
     header += "Criteria applied: English only, no retweets, no replies, deduplicated posts, low-signal posts filtered.\n\n"
 
     body = []

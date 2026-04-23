@@ -77,17 +77,26 @@ class TradingAgentsGraph:
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
+        quick_kwargs = dict(llm_kwargs)
+        deep_kwargs = dict(llm_kwargs)
+        quick_max_tokens = self.config.get("quick_max_tokens")
+        deep_max_tokens = self.config.get("deep_max_tokens")
+        if quick_max_tokens:
+            quick_kwargs["max_tokens"] = quick_max_tokens
+        if deep_max_tokens:
+            deep_kwargs["max_tokens"] = deep_max_tokens
+
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **deep_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["quick_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **quick_kwargs,
         )
 
         self.deep_thinking_llm = deep_client.get_llm()

@@ -61,10 +61,10 @@ def create_fundamentals_analyst(llm):
             )
 
         system_message = (
-            f"{tf_context}\n\nYou are a researcher tasked with analyzing fundamental information about an instrument. {asset_type_note} "
-            "Please write a comprehensive report of the instrument's fundamental information to inform traders. "
-            "Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence."
-            " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
+            f"{tf_context}\n\nAnalyze fundamental drivers for this instrument. {asset_type_note} "
+            "Provide a concise trading-focused fundamentals brief."
+            " Output format (max 220 words): Bias, 3 evidence bullets, 2 risks, 1 actionable implication."
+            " Add one markdown table with exactly 4 rows: Metric | Evidence | Risk | Action."
             " Do not ask the user what to do next. Do not ask follow-up questions. You must make decisions from available evidence and deliver a clear directional view, key risks, and concrete next action."
             + get_autonomous_evidence_instruction()
             + get_language_instruction()

@@ -12,6 +12,9 @@ from tradingagents.agents.utils.agent_utils import (
 
 
 def create_trader(llm, memory):
+    def _clip(text: str, limit: int = 1200) -> str:
+        return (text or "")[:limit]
+
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         instrument_context = build_instrument_context(company_name)
@@ -27,10 +30,15 @@ def create_trader(llm, memory):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = (
+            f"{_clip(market_research_report)}\n\n"
+            f"{_clip(sentiment_report)}\n\n"
+            f"{_clip(news_report)}\n\n"
+            f"{_clip(fundamentals_report)}"
+        )
         past_memories = memory.get_memories(
             curr_situation,
-            n_matches=2,
+            n_matches=1,
             primary_tf=primary_tf,
         )
 
@@ -90,7 +98,7 @@ Hard constraints:
 - Stop-Loss Price must be on the correct side of entry (SHORT: above entry, LONG: below entry).
 - Always conclude with: FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**
 
-Apply lessons from past decisions to strengthen your analysis. Here are reflections from similar situations you traded in and the lessons learned: {past_memory_str}"""
+Apply lessons from past decisions to strengthen your analysis. Use this memory context briefly: {_clip(past_memory_str, 800)}"""
         system_message += get_autonomous_evidence_instruction()
 
         prompt = ChatPromptTemplate.from_messages(
