@@ -1,4 +1,5 @@
 import functools
+import re
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -14,6 +15,60 @@ from tradingagents.agents.utils.agent_utils import (
 def create_trader(llm, memory):
     def _clip(text: str, limit: int = 1200) -> str:
         return (text or "")[:limit]
+
+    def _detect_regime(market_report: str) -> str:
+        text = (market_report or "").lower()
+        high_signals = (
+            "high volatility",
+            "moderate-high volatility",
+            "extreme volatility",
+            "high atr",
+            "risk-off",
+            "choppy",
+        )
+        low_signals = (
+            "low volatility",
+            "compressed volatility",
+            "range compression",
+            "low atr",
+        )
+        if any(token in text for token in high_signals):
+            return "high"
+        if any(token in text for token in low_signals):
+            return "low"
+        return "moderate"
+
+    def _extract_setup_score(report: str) -> int | None:
+        match = re.search(r"Setup Score \(0-100\)\s*:\s*(\d{1,3})", report or "", flags=re.IGNORECASE)
+        if not match:
+            return None
+        return max(0, min(100, int(match.group(1))))
+
+    def _extract_trigger_active(report: str) -> bool | None:
+        match = re.search(r"Trigger Active Now\s*:\s*(YES|NO)", report or "", flags=re.IGNORECASE)
+        if not match:
+            return None
+        return match.group(1).upper() == "YES"
+
+    def _extract_final_proposal(report: str) -> str | None:
+        match = re.search(
+            r"FINAL TRANSACTION PROPOSAL:\s*\*\*(BUY|HOLD|SELL)\*\*",
+            report or "",
+            flags=re.IGNORECASE,
+        )
+        return match.group(1).upper() if match else None
+
+    def _force_hold(report: str, note: str) -> str:
+        updated = re.sub(
+            r"FINAL TRANSACTION PROPOSAL:\s*\*\*(BUY|HOLD|SELL)\*\*",
+            "FINAL TRANSACTION PROPOSAL: **HOLD**",
+            report,
+            flags=re.IGNORECASE,
+        )
+        if "FINAL TRANSACTION PROPOSAL:" not in updated:
+            updated += "\n\nFINAL TRANSACTION PROPOSAL: **HOLD**"
+        updated += f"\n\nExecution Gate Override: {note}"
+        return updated
 
     def trader_node(state, name):
         company_name = state["company_of_interest"]
@@ -76,6 +131,18 @@ Setup evaluation rules:
 - If neither setup has sufficient conviction, output FLAT / NO TRADE with reasoning.
 - A "setup" requires: a defined entry condition, a stop-loss level, and at least one profit target.
 
+Execution scorecard and gate (MANDATORY):
+- Compute and report a numeric Setup Score (0-100) using:
+    - Trend Alignment (0-25)
+    - Momentum Quality (0-20)
+    - Structure Clarity (0-20)
+    - Risk/Reward Quality (0-20)
+    - Catalyst/Flow Support (0-15)
+- Apply this gate to actionability:
+    - Score >= 70: actionable setup allowed (LONG or SHORT if criteria met)
+    - Score 55-69: conditional only, default HOLD unless trigger is already active
+    - Score < 55: no-trade, output HOLD
+
 After your analysis, include a structured trade parameters section:
 
 **Trade Parameters ({primary_tf} timeframe):**
@@ -90,12 +157,28 @@ After your analysis, include a structured trade parameters section:
 - **Expected Holding Period**: [duration appropriate for {trading_style} on {primary_tf}]
 - **Position Sizing Note**: [risk guidance, e.g. \"risk max 1-2% of portfolio\"]
 
+**Setup Scorecard:**
+- Trend Alignment: [0-25]
+- Momentum Quality: [0-20]
+- Structure Clarity: [0-20]
+- Risk/Reward Quality: [0-20]
+- Catalyst/Flow Support: [0-15]
+- Setup Score (0-100): [sum]
+
+**Trigger Checklist:**
+- Trigger Active Now: YES/NO
+- Long Trigger Condition: [one line]
+- Short Trigger Condition: [one line]
+- Gate Result: ACTIONABLE / CONDITIONAL / NO-TRADE
+
 If a valid opposing setup exists, briefly describe it and explain why it was ranked lower.
 
 Hard constraints:
 - You must choose Stop-Loss % from exactly this fixed set: {stop_loss_options}.
 - Do not output any other stop-loss percentage.
 - Stop-Loss Price must be on the correct side of entry (SHORT: above entry, LONG: below entry).
+- Respect the setup-score gate before final action.
+- BUY/SELL is only valid when Trigger Active Now = YES; otherwise final action must be HOLD.
 - Always conclude with: FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**
 
 Apply lessons from past decisions to strengthen your analysis. Use this memory context briefly: {_clip(past_memory_str, 800)}"""
@@ -127,6 +210,31 @@ Apply lessons from past decisions to strengthen your analysis. Use this memory c
         report = ""
         if len(result.tool_calls) == 0:
             report = result.content
+            score = _extract_setup_score(report)
+            trigger_active = _extract_trigger_active(report)
+            current_proposal = _extract_final_proposal(report)
+
+            regime = _detect_regime(market_research_report)
+            threshold_by_regime = {
+                "low": 62,
+                "moderate": 70,
+                "high": 78,
+            }
+            threshold = threshold_by_regime[regime]
+
+            if current_proposal in {"BUY", "SELL"}:
+                if score is None:
+                    report = _force_hold(report, "Missing Setup Score (0-100), actionable trade not allowed.")
+                elif score < threshold:
+                    report = _force_hold(
+                        report,
+                        f"Score below regime threshold ({score}/100 < {threshold}) for {regime}-volatility regime.",
+                    )
+                elif trigger_active is not True:
+                    report = _force_hold(
+                        report,
+                        "Trigger Active Now is not YES; entry confirmation missing.",
+                    )
 
         return {
             "messages": [result],

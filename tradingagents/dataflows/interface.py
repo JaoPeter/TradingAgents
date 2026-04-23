@@ -126,8 +126,8 @@ VENDOR_METHODS = {
     },
     # fundamental_data
     "get_fundamentals": {
-        "coinmarketcap": get_coinmarketcap_fundamentals,
         "defilama": get_defilama_fundamentals,
+        "coinmarketcap": get_coinmarketcap_fundamentals,
         "yfinance": get_yfinance_fundamentals,
         "alpha_vantage": get_alpha_vantage_fundamentals,
     },

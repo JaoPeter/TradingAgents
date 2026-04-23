@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import os
+import re
 
 import requests
 
@@ -22,6 +23,50 @@ def _normalize_symbol(symbol: str) -> str:
     if raw.endswith("USD"):
         return raw[:-3]
     return raw
+
+
+def _norm_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
+    return slug
+
+
+def _resolve_protocol_match(protocols: list[dict], symbol: str) -> dict | None:
+    symbol_key = _norm_key(symbol)
+
+    # 1) Strict match on protocol symbol/name
+    for proto in protocols:
+        if _norm_key(proto.get("symbol", "")) == symbol_key:
+            return proto
+        if _norm_key(proto.get("name", "")) == symbol_key:
+            return proto
+
+    # 2) Partial name hint for common token vs protocol naming differences
+    for proto in protocols:
+        name_key = _norm_key(proto.get("name", ""))
+        if symbol_key and symbol_key in name_key:
+            return proto
+
+    return None
+
+
+def _try_protocol_endpoint(base_path: str, candidates: list[str]) -> dict | None:
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            resp = requests.get(f"{_BASE}/{base_path}/{candidate}", timeout=_API_TIMEOUT)
+            if resp.status_code != 200:
+                continue
+            payload = resp.json()
+            if isinstance(payload, dict) and payload:
+                return payload
+        except Exception:
+            continue
+    return None
 
 
 def get_defi_metrics(curr_date: str = None) -> str:
@@ -140,15 +185,21 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
     except Exception as exc:
         return f"Error fetching DefiLlama protocols: {exc}"
 
-    matched = None
-    for proto in protocols:
-        if proto.get("symbol", "").upper() == symbol or proto.get("name", "").upper() == symbol:
-            matched = proto
-            break
+    matched = _resolve_protocol_match(protocols, symbol)
 
     if matched:
         proto_name = matched.get("name", symbol)
-        slug = proto_name.lower().replace(" ", "-")
+        slug_candidates = []
+        for raw in (
+            matched.get("slug", ""),
+            matched.get("name", ""),
+            matched.get("symbol", ""),
+            proto_name,
+            symbol,
+        ):
+            slug = _slugify(raw)
+            if slug and slug not in slug_candidates:
+                slug_candidates.append(slug)
         lines = [
             f"Protocol: {proto_name}",
             f"Symbol: {matched.get('symbol', '-')}",
@@ -165,30 +216,22 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
             lines.append(f"FDV (USD): {matched['fdv']}")
 
         # Fees & revenue
-        try:
-            fee_resp = requests.get(f"{_BASE}/summary/fees/{slug}", timeout=_API_TIMEOUT)
-            if fee_resp.status_code == 200:
-                fee_data = fee_resp.json()
-                if fee_data.get("total24h") is not None:
-                    lines.append(f"Fees 24h (USD): {fee_data['total24h']}")
-                if fee_data.get("totalRevenue24h") is not None:
-                    lines.append(f"Revenue 24h (USD): {fee_data['totalRevenue24h']}")
-                if fee_data.get("total7d") is not None:
-                    lines.append(f"Fees 7d (USD): {fee_data['total7d']}")
-        except Exception:
-            pass
+        fee_data = _try_protocol_endpoint("summary/fees", slug_candidates)
+        if fee_data:
+            if fee_data.get("total24h") is not None:
+                lines.append(f"Fees 24h (USD): {fee_data['total24h']}")
+            if fee_data.get("totalRevenue24h") is not None:
+                lines.append(f"Revenue 24h (USD): {fee_data['totalRevenue24h']}")
+            if fee_data.get("total7d") is not None:
+                lines.append(f"Fees 7d (USD): {fee_data['total7d']}")
 
         # DEX volume
-        try:
-            dex_resp = requests.get(f"{_BASE}/summary/dexs/{slug}", timeout=_API_TIMEOUT)
-            if dex_resp.status_code == 200:
-                dex_data = dex_resp.json()
-                if dex_data.get("total24h") is not None:
-                    lines.append(f"DEX Volume 24h (USD): {dex_data['total24h']}")
-                if dex_data.get("total7d") is not None:
-                    lines.append(f"DEX Volume 7d (USD): {dex_data['total7d']}")
-        except Exception:
-            pass
+        dex_data = _try_protocol_endpoint("summary/dexs", slug_candidates)
+        if dex_data:
+            if dex_data.get("total24h") is not None:
+                lines.append(f"DEX Volume 24h (USD): {dex_data['total24h']}")
+            if dex_data.get("total7d") is not None:
+                lines.append(f"DEX Volume 7d (USD): {dex_data['total7d']}")
 
         return header + "\n".join(
             l for l in lines if l.split(": ", 1)[-1] not in ("None", "-", "None%")

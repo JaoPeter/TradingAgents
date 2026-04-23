@@ -37,13 +37,13 @@ DEFAULT_CONFIG = {
     "data_vendors": {
         "core_stock_apis": "binance",         # Options: binance, coinmarketcap, yfinance, alpha_vantage
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "coinmarketcap", # Options: coinmarketcap, defilama, yfinance, alpha_vantage
+        "fundamental_data": "defilama",      # Options: defilama, coinmarketcap, yfinance, alpha_vantage
         "news_data": "cryptocompare",        # Options: cryptocompare, x_sentiment, crypto_rss, yfinance, alpha_vantage
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         "get_stock_data": "binance,coinmarketcap,yfinance,alpha_vantage",
-        "get_fundamentals": "coinmarketcap,defilama,yfinance,alpha_vantage",
+        "get_fundamentals": "defilama,coinmarketcap,yfinance,alpha_vantage",
         "get_news": "cryptocompare,x_sentiment,crypto_rss,yfinance,alpha_vantage",
         "get_global_news": "cryptocompare,crypto_rss,yfinance,alpha_vantage",
         "get_sentiment_summary": "x_sentiment",
