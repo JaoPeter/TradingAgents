@@ -56,9 +56,14 @@ def _is_vendor_failure(result) -> bool:
         "error",
         "no data",
         "invalid",
+        "no news found",
     )
 
-    return normalized.startswith(failure_prefixes) or "api_key not set" in normalized
+    return (
+        normalized.startswith(failure_prefixes)
+        or "api_key not set" in normalized
+        or "no news found" in normalized
+    )
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
