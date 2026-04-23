@@ -2,6 +2,7 @@ import functools
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
+    get_autonomous_evidence_instruction,
     build_instrument_context,
     build_timeframe_context,
     get_lookback_days,
@@ -55,29 +56,42 @@ Required live-price tool call rule:
 - Use get_stock_data(symbol, start_date, end_date) with symbol={company_name}.
 - end_date must be {current_date}.
 - start_date should be close enough to validate current entry context (typically {lookback_days} days back).
-- Do not finalize Entry/Stop-Loss/Targets until this tool call has returned.
+- Do not finalize any setup until this tool call has returned.
 
 You are given a proposed plan from the research team:
 {investment_plan}
 
+Setup evaluation rules:
+- Evaluate BOTH a potential long setup AND a potential short setup independently based on the available data.
+- Select the setup with the highest conviction given the current evidence (trend, momentum, structure, sentiment, fundamentals).
+- If both setups are valid but conflicting, prefer the one aligned with the dominant trend on the {primary_tf} timeframe.
+- If neither setup has sufficient conviction, output FLAT / NO TRADE with reasoning.
+- A "setup" requires: a defined entry condition, a stop-loss level, and at least one profit target.
+
 After your analysis, include a structured trade parameters section:
 
 **Trade Parameters ({primary_tf} timeframe):**
-- **Action**: BUY / SELL / HOLD
-- **Entry Zone**: [price level or condition]
+- **Direction**: LONG / SHORT / FLAT
+- **Entry Condition**: [exact price level, breakout trigger, or pullback zone that activates the trade]
+- **Entry Zone**: [price range for entry]
 - **Stop-Loss %**: [MUST be exactly one of: {stop_loss_options}]
-- **Stop-Loss Price**: [price derived from the selected Stop-Loss % and entry]
+- **Stop-Loss Price**: [price derived from the selected Stop-Loss % and entry — above entry for SHORT, below for LONG]
 - **Target 1**: [first profit target]
 - **Target 2**: [second profit target, optional]
+- **Invalidation**: [condition that cancels this setup entirely]
 - **Expected Holding Period**: [duration appropriate for {trading_style} on {primary_tf}]
 - **Position Sizing Note**: [risk guidance, e.g. \"risk max 1-2% of portfolio\"]
+
+If a valid opposing setup exists, briefly describe it and explain why it was ranked lower.
 
 Hard constraints:
 - You must choose Stop-Loss % from exactly this fixed set: {stop_loss_options}.
 - Do not output any other stop-loss percentage.
+- Stop-Loss Price must be on the correct side of entry (SHORT: above entry, LONG: below entry).
 - Always conclude with: FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**
 
 Apply lessons from past decisions to strengthen your analysis. Here are reflections from similar situations you traded in and the lessons learned: {past_memory_str}"""
+        system_message += get_autonomous_evidence_instruction()
 
         prompt = ChatPromptTemplate.from_messages(
             [

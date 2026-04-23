@@ -1,4 +1,9 @@
-from tradingagents.agents.utils.agent_utils import build_instrument_context, build_timeframe_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    build_timeframe_context,
+    get_autonomous_evidence_instruction,
+    get_language_instruction,
+)
 
 
 def create_portfolio_manager(llm, memory):
@@ -64,6 +69,7 @@ def create_portfolio_manager(llm, memory):
 ---
 
 Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+        prompt += get_autonomous_evidence_instruction()
 
         response = llm.invoke(prompt)
 

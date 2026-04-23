@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     build_timeframe_context,
+    get_autonomous_evidence_instruction,
     get_indicators,
     invoke_with_optional_tools,
     get_language_instruction,
@@ -75,6 +76,7 @@ MULTI-TIMEFRAME ANALYSIS WORKFLOW:
 Write a very detailed and nuanced multi-timeframe report of the trends you observe. Provide specific, actionable insights with supporting evidence, calibrated for a {state.get('trading_style', 'swing')} trader on the {primary_tf} timeframe. Explain how higher timeframes support or contradict your primary timeframe analysis."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + """ Do not ask the user what to do next. Do not ask follow-up questions. You must make decisions from available evidence and deliver a clear directional view, key risks, and concrete next action."""
+            + get_autonomous_evidence_instruction()
             + get_language_instruction()
         )
 

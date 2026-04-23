@@ -35,6 +35,16 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def get_autonomous_evidence_instruction() -> str:
+    """Return a shared prompt rule for autonomous, source-grounded decisions."""
+    return (
+        " You must make autonomous decisions from the available evidence without asking the user what to do next."
+        " Ground every major claim and recommendation in explicit sources from tool outputs or provided reports"
+        " (for example: market report, sentiment report, news source, fundamentals report, or live price check)."
+        " If evidence is mixed or limited, still provide the best actionable decision and state the uncertainty clearly."
+    )
+
+
 def build_instrument_context(ticker: str) -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
     return (

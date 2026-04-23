@@ -109,10 +109,10 @@ VENDOR_LIST = [
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
-        "alpha_vantage": get_alpha_vantage_stock,
-        "yfinance": get_YFin_data_online,
         "binance": get_binance_stock,
         "coinmarketcap": get_coinmarketcap_stock,
+        "yfinance": get_YFin_data_online,
+        "alpha_vantage": get_alpha_vantage_stock,
     },
     # technical_indicators
     "get_indicators": {
@@ -121,10 +121,10 @@ VENDOR_METHODS = {
     },
     # fundamental_data
     "get_fundamentals": {
-        "alpha_vantage": get_alpha_vantage_fundamentals,
-        "yfinance": get_yfinance_fundamentals,
         "coinmarketcap": get_coinmarketcap_fundamentals,
         "defilama": get_defilama_fundamentals,
+        "yfinance": get_yfinance_fundamentals,
+        "alpha_vantage": get_alpha_vantage_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
@@ -140,17 +140,17 @@ VENDOR_METHODS = {
     },
     # news_data
     "get_news": {
-        "alpha_vantage": get_alpha_vantage_news,
-        "yfinance": get_news_yfinance,
         "cryptocompare": get_cryptocompare_news,
-        "crypto_rss": get_crypto_rss_news,
         "x_sentiment": get_x_news,
+        "crypto_rss": get_crypto_rss_news,
+        "yfinance": get_news_yfinance,
+        "alpha_vantage": get_alpha_vantage_news,
     },
     "get_global_news": {
-        "yfinance": get_global_news_yfinance,
-        "alpha_vantage": get_alpha_vantage_global_news,
         "cryptocompare": get_cryptocompare_global_news,
         "crypto_rss": get_crypto_rss_global_news,
+        "yfinance": get_global_news_yfinance,
+        "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_sentiment_summary": {
         "x_sentiment": get_x_sentiment,

@@ -1,6 +1,9 @@
 
 
-from tradingagents.agents.utils.agent_utils import build_timeframe_context
+from tradingagents.agents.utils.agent_utils import (
+    build_timeframe_context,
+    get_autonomous_evidence_instruction,
+)
 
 
 def create_bear_researcher(llm, memory):
@@ -48,6 +51,7 @@ Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
     Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of a long position. You must also address reflections and learn from lessons and mistakes you made in the past.
 """
+        prompt += get_autonomous_evidence_instruction()
 
         response = llm.invoke(prompt)
 

@@ -1,5 +1,9 @@
 
-from tradingagents.agents.utils.agent_utils import build_instrument_context, build_timeframe_context
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    build_timeframe_context,
+    get_autonomous_evidence_instruction,
+)
 
 
 def create_research_manager(llm, memory):
@@ -50,6 +54,7 @@ Here are your past reflections on mistakes:
 Here is the debate:
 Debate History:
 {history}"""
+        prompt += get_autonomous_evidence_instruction()
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {
